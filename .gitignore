@@ -1,0 +1,19 @@
+# Giữ cho file này nằm ở thư mục gốc của dự án (.csproj)
+
+# Build artifacts
+[Bb]in/
+[Oo]bj/
+*.pdb
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# VS Code/VS artifacts
+.vscode/
+.vs/
+
+# Thư mục chứa file Database SQLite (Quan trọng, không nên commit file dữ liệu)
+MiniOrder.db
+MiniOrder.db-shm
+MiniOrder.db-wal
