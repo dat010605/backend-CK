@@ -19,19 +19,27 @@ namespace MiniOrderAPI.Controllers
             _context = context;
         }
 
-        [HttpGet]
-        // Chỉ cho phép người dùng có quyền Admin truy cập (nếu bạn đã cấu hình Policy)
-        // [Authorize(Roles = "Admin")] 
-        public ActionResult<IEnumerable<User>> GetUsers()
+       [HttpGet]
+public async Task<ActionResult<IEnumerable<object>>> GetUsers()
+{
+    // Sử dụng ToListAsync() cho thao tác bất đồng bộ
+    var users = await _context.Users
+        .Select(u => new 
         {
-            // Trả về danh sách tất cả người dùng (KHÔNG nên trả về PasswordHash)
-            return Ok(_context.Users.Select(u => new 
-            {
-                u.Id,
-                u.Username,
-                u.Role
-            }).ToList());
-        }
+            u.Id,
+            u.Username,
+            u.Role
+        })
+        .ToListAsync(); // <-- Thêm await và ToListAsync()
+
+    // Nếu không tìm thấy users nào, có thể trả về NotFound
+    if (users == null || !users.Any())
+    {
+        return NotFound("Không tìm thấy người dùng nào.");
+    }
+
+    return Ok(users);
+}
         // --- POST METHOD ĐỂ TẠO TÀI KHOẢN ---
 [HttpPost]
 public async Task<ActionResult> RegisterUser([FromBody] RegisterUserDto request)
