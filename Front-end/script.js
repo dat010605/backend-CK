@@ -1,5 +1,6 @@
 const API_URL = 'http://localhost:5115/api'; 
-// Toast
+
+// Toast thông báo
 function toast(msg, type = 'success') {
   Toastify({
     text: msg,
@@ -9,19 +10,30 @@ function toast(msg, type = 'success') {
   }).showToast();
 }
 
-// Kiểm tra đăng nhập
+// Kiểm tra đăng nhập & Quyền
 function checkAuth(requiredRole = null) {
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('role');
+
+  // 1. Chưa đăng nhập -> Về Login
   if (!token) {
     window.location.href = 'login.html';
     return false;
   }
-  if (requiredRole && role !== requiredRole) {
-    toast('Bạn không có quyền truy cập!', 'error');
-    setTimeout(() => window.location.href = 'products.html', 1000);
-    return false;
+
+  // 2. Kiểm tra Role (So sánh không phân biệt hoa thường)
+  if (requiredRole) {
+    // Chuyển cả 2 về chữ thường để so sánh
+    const currentRole = role ? role.toLowerCase() : '';
+    const reqRole = requiredRole.toLowerCase();
+
+    if (currentRole !== reqRole) {
+      toast('Bạn không có quyền Admin!', 'error');
+      setTimeout(() => window.location.href = 'products.html', 1000);
+      return false;
+    }
   }
+  
   return { token, role };
 }
 
@@ -38,6 +50,8 @@ function updateCartCount() {
   const el = document.getElementById('cart-count');
   if (el) el.textContent = total;
 }
+
+// Gọi hàm này để đảm bảo nó chạy khi script load
 updateCartCount();
 
 // Thêm vào giỏ
@@ -56,6 +70,7 @@ function removeFromCart(id) {
   let cart = JSON.parse(localStorage.getItem('cart') || '[]');
   cart = cart.filter(x => x.id !== id);
   localStorage.setItem('cart', JSON.stringify(cart));
-  loadCart(); // sẽ được gọi từ cart.html
+  // Nếu đang ở trang cart thì load lại
+  if (typeof loadCart === 'function') loadCart(); 
   updateCartCount();
 }
