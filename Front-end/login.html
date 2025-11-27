@@ -19,11 +19,18 @@
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <script src="script.js"></script>
   <script>
+    // --- SỬA LỖI 1: Tự động chuyển hướng nếu đã đăng nhập ---
     if (localStorage.getItem('token')) {
       const role = localStorage.getItem('role');
-
-location.href = data.role === 'Admin' ? 'admin.html' : 'products.html';
+      // Sửa: Dùng biến 'role' thay vì 'data.role' (vì 'data' chưa tồn tại ở đây)
+      // Sửa: So sánh với 'Admin' (khớp với Database) thay vì 'ADMIN'
+      if (role === 'Admin') {
+        location.href = 'admin.html';
+      } else {
+        location.href = 'products.html';
+      }
     }
+
     async function login() {
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
@@ -34,13 +41,21 @@ location.href = data.role === 'Admin' ? 'admin.html' : 'products.html';
           body: JSON.stringify({ username, password })
         });
         const data = await res.json();
+        
         if (res.ok) {
           localStorage.setItem('token', data.token);
           localStorage.setItem('role', data.role);
           toast('Đăng nhập thành công!');
-          location.href = data.role === 'ADMIN' ? 'admin.html' : 'products.html';
-        } else toast(data.message || 'Sai thông tin', 'error');
-      } catch { toast('Lỗi server', 'error'); }
+          
+          // --- SỬA LỖI 2: So sánh role đúng chính tả ---
+          // Backend trả về "Admin", nên phải so sánh với 'Admin'
+          location.href = data.role === 'Admin' ? 'admin.html' : 'products.html';
+        } else {
+            toast(data.message || 'Sai thông tin', 'error');
+        }
+      } catch { 
+          toast('Lỗi server', 'error'); 
+      }
     }
   </script>
 </body>

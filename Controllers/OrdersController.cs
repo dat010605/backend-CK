@@ -4,13 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using MiniOrderAPI.Data;
 using MiniOrderAPI.DTOs;
 using MiniOrderAPI.Models;
-using System.Security.Claims; // Cần để lấy thông tin từ Token
+using System.Security.Claims; 
 
 namespace MiniOrderAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // 1. Bắt buộc phải đăng nhập mới được vào Controller này
+    [Authorize] 
     public class OrdersController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -24,17 +24,16 @@ namespace MiniOrderAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDto dto)
         {
-            // 2. LẤY ID NGƯỜI DÙNG TỪ TOKEN (An toàn tuyệt đối)
+            // 1. Lấy thông tin User từ Token
             var username = User.Identity?.Name;
             var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
 
             if (currentUser == null) return Unauthorized("Không xác định được người dùng.");
 
-            // 3. Tạo Order Master
+            // 2. Tạo Order Master (Sử dụng UserId thay vì CustomerId)
             var order = new Order
             {
-                // Thay vì lấy dto.CustomerId, ta lấy chính ID của người đang đăng nhập
-                CustomerId = currentUser.Id, 
+                UserId = currentUser.Id, // <--- ĐÃ SỬA: Gán ID của User đang đăng nhập
                 OrderDate = DateTime.Now,
                 Status = "New",
                 OrderDetails = new List<OrderDetail>()
@@ -42,15 +41,18 @@ namespace MiniOrderAPI.Controllers
 
             decimal totalAmount = 0;
 
-            // 4. Duyệt từng sản phẩm
+            // 3. Duyệt sản phẩm và trừ tồn kho
             foreach (var item in dto.Items)
             {
                 var product = await _context.Products.FindAsync(item.ProductId);
+                
+                // Kiểm tra sản phẩm tồn tại
                 if (product == null)
-                    return NotFound($"Không tìm thấy sản phẩm ID: {item.ProductId}");
+                    return NotFound(new { message = $"Không tìm thấy sản phẩm ID: {item.ProductId}" });
 
+                // Kiểm tra số lượng tồn
                 if (product.StockQuantity < item.Quantity)
-                    return BadRequest($"Sản phẩm {product.Name} không đủ hàng (còn {product.StockQuantity})");
+                    return BadRequest(new { message = $"Sản phẩm '{product.Name}' không đủ hàng (còn {product.StockQuantity})" });
 
                 var detail = new OrderDetail
                 {
@@ -71,6 +73,7 @@ namespace MiniOrderAPI.Controllers
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
 
+            // Trả về kết quả
             return CreatedAtAction(nameof(GetById), new { id = order.Id }, order);
         }
 
@@ -79,23 +82,23 @@ namespace MiniOrderAPI.Controllers
         public async Task<IActionResult> GetById(int id)
         {
             var order = await _context.Orders
+                .Include(o => o.User)         // Include thông tin người đặt
                 .Include(o => o.OrderDetails)
                     .ThenInclude(od => od.Product)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
-            if (order == null) return NotFound();
+            if (order == null) return NotFound(new { message = "Không tìm thấy đơn hàng" });
 
-            // 5. PHÂN QUYỀN: Kiểm tra xem User có được xem đơn này không?
-            // Admin được xem tất cả. User chỉ được xem đơn của mình.
+            // 4. PHÂN QUYỀN:
             var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
             var username = User.Identity?.Name;
             
-            // Tìm User ID hiện tại
             var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
             
-            if (userRole != "Admin" && order.CustomerId != currentUser.Id)
+            // Nếu không phải Admin VÀ đơn hàng này không phải của người đó -> Chặn
+            if (userRole != "Admin" && order.UserId != currentUser.Id) // <--- ĐÃ SỬA: So sánh UserId
             {
-                return Forbid(); // 403 Forbidden: Không có quyền xem đơn của người khác
+                return Forbid(); 
             }
 
             return Ok(order);
@@ -114,11 +117,11 @@ namespace MiniOrderAPI.Controllers
                 .ThenInclude(od => od.Product)
                 .OrderByDescending(o => o.OrderDate);
 
-            // 6. PHÂN QUYỀN DANH SÁCH:
-            // Nếu không phải Admin, chỉ trả về đơn hàng CỦA CHÍNH HỌ
+            // 5. LỌC DANH SÁCH:
+            // Nếu là User thường, chỉ thấy đơn của chính mình
             if (userRole != "Admin")
             {
-                query = query.Where(o => o.CustomerId == currentUser.Id);
+                query = query.Where(o => o.UserId == currentUser.Id); // <--- ĐÃ SỬA: Lọc theo UserId
             }
 
             return await query.ToListAsync();
@@ -126,20 +129,23 @@ namespace MiniOrderAPI.Controllers
 
         // DELETE: api/orders/{id} – Chỉ Admin
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")] // Chỉ Admin mới xóa được
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteOrder(int id)
         {
             var order = await _context.Orders
-                .Include(o => o.OrderDetails) // Load chi tiết để xóa (nếu cần hoàn lại kho)
+                .Include(o => o.OrderDetails)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
-            if (order == null) return NotFound();
+            if (order == null) return NotFound(new { message = "Không tìm thấy đơn hàng" });
 
-            // (Optional) Bonus: Hoàn lại tồn kho khi xóa đơn hàng
+            // Hoàn lại tồn kho khi xóa đơn
             foreach(var item in order.OrderDetails)
             {
                 var product = await _context.Products.FindAsync(item.ProductId);
-                if(product != null) product.StockQuantity += item.Quantity;
+                if(product != null) 
+                {
+                    product.StockQuantity += item.Quantity;
+                }
             }
 
             _context.Orders.Remove(order);

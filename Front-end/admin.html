@@ -15,13 +15,23 @@
 
   <div id="admin-products" style="padding:20px;"></div>
 
-  <!-- Modal -->
   <div id="product-modal" class="modal" style="display:none;">
     <div class="modal-content">
       <h3 id="modal-title">Thêm sản phẩm</h3>
       <input type="hidden" id="edit-id" />
-      <input type="text" id="product-name" placeholder="Tên sản phẩm" />
-      <input type="number" id="product-price" placeholder="Giá tiền (VNĐ)" />
+      
+      <label>Tên sản phẩm:</label>
+      <input type="text" id="product-name" placeholder="Nhập tên sản phẩm..." />
+      
+      <label>Giá tiền:</label>
+      <input type="number" id="product-price" placeholder="Nhập giá (VNĐ)..." />
+
+      <label>Số lượng tồn kho:</label>
+      <input type="number" id="product-stock" placeholder="Nhập số lượng..." />
+
+      <label>Mô tả:</label>
+      <input type="text" id="product-desc" placeholder="Nhập mô tả sản phẩm..." />
+
       <div style="text-align:right;margin-top:20px;">
         <button onclick="saveProduct()">Lưu</button>
         <button onclick="closeModal()" style="background:#95a5a6;">Hủy</button>
@@ -32,46 +42,81 @@
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <script src="script.js"></script>
   <script>
-    if (!checkAuth('ADMIN')) return;
+    // Kiểm tra quyền Admin
+    if (localStorage.getItem('token')) {
+        const role = localStorage.getItem('role');
+        // So sánh an toàn không phân biệt hoa thường
+        if (!role || role.toLowerCase() !== 'admin') {
+            window.location.href = 'products.html';
+        }
+    } else {
+        window.location.href = 'login.html';
+    }
 
     async function loadAdminProducts() {
-      const res = await fetch(`${API_URL}/products`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      const products = await res.json();
-      const html = products.map(p => `
-        <tr>
-          <td>${p.id}</td>
-          <td>${p.name}</td>
-          <td>${p.price.toLocaleString()}đ</td>
-          <td>
-            <button onclick="openEditForm(${p.id}, '${p.name.replace(/'/g,"\\\'")}', ${p.price})">Sửa</button>
-            <button onclick="deleteProduct(${p.id})" style="color:red;margin-left:5px;">Xóa</button>
-          </td>
-        </tr>
-      `).join('');
+      try {
+        const res = await fetch(`${API_URL}/products`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (!res.ok) throw new Error("Lỗi tải danh sách");
+        
+        const products = await res.json();
+        
+        // Render danh sách (Lưu ý: truyền đủ 4 tham số vào hàm openEditForm)
+        const html = products.map(p => {
+            // Xử lý chuỗi đặc biệt để tránh lỗi JS khi render
+            const safeName = p.name.replace(/'/g, "\\'");
+            const safeDesc = (p.description || "").replace(/'/g, "\\'");
+            
+            return `
+            <tr>
+            <td>${p.id}</td>
+            <td>${p.name}</td>
+            <td>${p.price.toLocaleString()}đ</td>
+            <td>${p.stockQuantity}</td> <td>
+                <button onclick="openEditForm(${p.id}, '${safeName}', ${p.price}, ${p.stockQuantity}, '${safeDesc}')">Sửa</button>
+                <button onclick="deleteProduct(${p.id})" style="color:red;margin-left:5px;">Xóa</button>
+            </td>
+            </tr>
+            `;
+        }).join('');
 
-      document.getElementById('admin-products').innerHTML = `
-        <table>
-          <thead><tr><th>ID</th><th>Tên sản phẩm</th><th>Giá</th><th>Hành động</th></tr></thead>
-          <tbody>${html}</tbody>
-        </table>
-      `;
+        document.getElementById('admin-products').innerHTML = `
+            <table>
+            <thead><tr><th>ID</th><th>Tên</th><th>Giá</th><th>Kho</th><th>Hành động</th></tr></thead>
+            <tbody>${html}</tbody>
+            </table>
+        `;
+      } catch (err) {
+          console.error(err);
+          toast('Không tải được danh sách sản phẩm', 'error');
+      }
     }
 
     function openAddForm() {
       document.getElementById('modal-title').textContent = 'Thêm sản phẩm mới';
       document.getElementById('edit-id').value = '';
+      
+      // Reset form
       document.getElementById('product-name').value = '';
       document.getElementById('product-price').value = '';
+      document.getElementById('product-stock').value = ''; // Reset kho
+      document.getElementById('product-desc').value = '';  // Reset mô tả
+      
       document.getElementById('product-modal').style.display = 'block';
     }
 
-    function openEditForm(id, name, price) {
+    // Hàm Sửa nhận đủ 4 tham số
+    function openEditForm(id, name, price, stock, desc) {
       document.getElementById('modal-title').textContent = 'Sửa sản phẩm';
       document.getElementById('edit-id').value = id;
+      
+      // Điền dữ liệu cũ vào form
       document.getElementById('product-name').value = name;
       document.getElementById('product-price').value = price;
+      document.getElementById('product-stock').value = stock;
+      document.getElementById('product-desc').value = desc;
+      
       document.getElementById('product-modal').style.display = 'block';
     }
 
@@ -80,39 +125,78 @@
     }
 
     async function saveProduct() {
-      const id = document.getElementById('edit-id'). value;
+      const id = document.getElementById('edit-id').value;
+      
+      // Lấy dữ liệu từ 4 ô input
       const name = document.getElementById('product-name').value.trim();
-      const price = parseInt(document.getElementById('product-price').value);
+      const price = parseFloat(document.getElementById('product-price').value);
+      const stockQuantity = parseInt(document.getElementById('product-stock').value);
+      const description = document.getElementById('product-desc').value.trim();
 
-      if (!name || !price) return toast('Vui lòng nhập đủ thông tin!', 'error');
+      // Kiểm tra dữ liệu hợp lệ
+      if (!name || isNaN(price) || isNaN(stockQuantity) || !description) {
+          return toast('Vui lòng nhập đầy đủ thông tin!', 'error');
+      }
 
       const method = id ? 'PUT' : 'POST';
       const url = id ? `${API_URL}/products/${id}` : `${API_URL}/products`;
 
-      await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ name, price })
-      });
+      try {
+        const res = await fetch(url, {
+            method,
+            headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            // Gửi đủ 4 trường JSON khớp với DTO Backend
+            body: JSON.stringify({ 
+                name, 
+                price, 
+                stockQuantity, 
+                description 
+            })
+        });
 
-      closeModal();
-      loadAdminProducts();
-      toast(id ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!');
+        if (res.ok) {
+            closeModal();
+            loadAdminProducts();
+            toast(id ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!');
+        } else {
+            // Hiển thị lỗi chi tiết từ Backend nếu có
+            const data = await res.json();
+            // Nếu lỗi là validation (errors), format lại cho dễ đọc
+            let msg = data.message || 'Lỗi lưu sản phẩm';
+            if (data.errors) {
+                msg = Object.values(data.errors).flat().join('\n');
+            }
+            toast(msg, 'error');
+        }
+      } catch (error) {
+          console.error(error);
+          toast('Lỗi kết nối server', 'error');
+      }
     }
 
     async function deleteProduct(id) {
-      if (!confirm('Xóa sản phẩm này?')) return;
-      await fetch(`${API_URL}/products/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      loadAdminProducts();
-      toast('Xóa thành công!');
+      if (!confirm('Bạn chắc chắn muốn xóa sản phẩm này?')) return;
+      try {
+        const res = await fetch(`${API_URL}/products/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        
+        if (res.ok) {
+            loadAdminProducts();
+            toast('Xóa thành công!');
+        } else {
+            toast('Không thể xóa (có thể sản phẩm đã có đơn hàng)', 'error');
+        }
+      } catch {
+          toast('Lỗi server', 'error');
+      }
     }
 
+    // Load danh sách khi vào trang
     loadAdminProducts();
   </script>
 </body>

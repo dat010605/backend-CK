@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.IdentityModel.Tokens;
 using MiniOrderAPI.Services;
 using System.Text;
+using Microsoft.OpenApi.Models; // <-- QUAN TRỌNG: Thêm dòng này
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +32,37 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 
 // Cấu hình Swagger
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// 👇 CẤU HÌNH MỚI ĐỂ HIỆN NÚT AUTHORIZE 👇
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "MiniOrderAPI", Version = "v1" });
+    
+    // Định nghĩa bảo mật Bearer
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Nhập token theo định dạng: Bearer {token}",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    // Yêu cầu bảo mật
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 // Cấu hình Database
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -51,7 +82,8 @@ builder.Services.AddAuthentication("Bearer")
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])
-            )
+            ),
+            ClockSkew = TimeSpan.Zero 
         };
     });
 
@@ -74,7 +106,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection(); // Đã tắt để tránh lỗi CORS khi chạy local
 
 // CORS phải trước Authentication
 app.UseCors("AllowAll");
@@ -96,8 +128,9 @@ using (var scope = app.Services.CreateScope())
     // Áp dụng Migration
     context.Database.Migrate();
     
-    // Chạy Seeder
+    // Chạy Seeder (Code trong AppDbContext.cs)
     UserSeeder.Seed(context);
+    // Nếu có ProductSeeder thì thêm ở đây
 }
 
 app.Run();
