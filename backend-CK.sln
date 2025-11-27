@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniOrderAPI", "MiniOrderAPI.csproj", "{28C637A2-509A-7816-4BE8-DD6DC14792FB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{28C637A2-509A-7816-4BE8-DD6DC14792FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28C637A2-509A-7816-4BE8-DD6DC14792FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28C637A2-509A-7816-4BE8-DD6DC14792FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28C637A2-509A-7816-4BE8-DD6DC14792FB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3AF75D75-F55E-4708-9597-685461783E5E}
+	EndGlobalSection
+EndGlobal

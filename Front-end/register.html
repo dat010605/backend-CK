@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Đăng ký</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Đăng ký tài khoản</h2>
+    <input type="text" id="username" placeholder="Tên đăng nhập" />
+    <input type="text" id="fullname" placeholder="Họ và tên" />
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Mật khẩu" />
+    <input type="password" id="confirm" placeholder="Nhập lại mật khẩu" />
+    <button onclick="register()">Đăng ký</button>
+    <p>Đã có tài khoản? <span class="link" onclick="location.href='login.html'">Đăng nhập</span></p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="script.js"></script>
+  <script>
+    async function register() {
+      const username = document.getElementById('username').value.trim();
+      const fullname = document.getElementById('fullname').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirm = document.getElementById('confirm').value;
+      if (password !== confirm) return toast('Mật khẩu không khớp!', 'error');
+      if (!username || !password || !email) return toast('Vui lòng điền đủ thông tin!', 'error');
+
+      try {
+        const res = await fetch(`${API_URL}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, fullName: fullname, email })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          toast('Đăng ký thành công! Đang chuyển sang đăng nhập...');
+          setTimeout(() => location.href = 'login.html', 1500);
+        } else toast(data.message || 'Lỗi đăng ký', 'error');
+      } catch { toast('Lỗi kết nối server', 'error'); }
+    }
+  </script>
+</body>
+</html>

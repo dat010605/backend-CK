@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Quản trị - Sản phẩm</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+<body>
+  <div class="header">QUẢN TRỊ VIÊN - QUẢN LÝ SẢN PHẨM</div>
+  <div style="padding:20px;text-align:right;">
+    <button onclick="openAddForm()">Thêm sản phẩm mới</button>
+    <button onclick="logout()">Đăng xuất</button>
+  </div>
+
+  <div id="admin-products" style="padding:20px;"></div>
+
+  <!-- Modal -->
+  <div id="product-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <h3 id="modal-title">Thêm sản phẩm</h3>
+      <input type="hidden" id="edit-id" />
+      <input type="text" id="product-name" placeholder="Tên sản phẩm" />
+      <input type="number" id="product-price" placeholder="Giá tiền (VNĐ)" />
+      <div style="text-align:right;margin-top:20px;">
+        <button onclick="saveProduct()">Lưu</button>
+        <button onclick="closeModal()" style="background:#95a5a6;">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="script.js"></script>
+  <script>
+    if (!checkAuth('ADMIN')) return;
+
+    async function loadAdminProducts() {
+      const res = await fetch(`${API_URL}/products`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const products = await res.json();
+      const html = products.map(p => `
+        <tr>
+          <td>${p.id}</td>
+          <td>${p.name}</td>
+          <td>${p.price.toLocaleString()}đ</td>
+          <td>
+            <button onclick="openEditForm(${p.id}, '${p.name.replace(/'/g,"\\\'")}', ${p.price})">Sửa</button>
+            <button onclick="deleteProduct(${p.id})" style="color:red;margin-left:5px;">Xóa</button>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('admin-products').innerHTML = `
+        <table>
+          <thead><tr><th>ID</th><th>Tên sản phẩm</th><th>Giá</th><th>Hành động</th></tr></thead>
+          <tbody>${html}</tbody>
+        </table>
+      `;
+    }
+
+    function openAddForm() {
+      document.getElementById('modal-title').textContent = 'Thêm sản phẩm mới';
+      document.getElementById('edit-id').value = '';
+      document.getElementById('product-name').value = '';
+      document.getElementById('product-price').value = '';
+      document.getElementById('product-modal').style.display = 'block';
+    }
+
+    function openEditForm(id, name, price) {
+      document.getElementById('modal-title').textContent = 'Sửa sản phẩm';
+      document.getElementById('edit-id').value = id;
+      document.getElementById('product-name').value = name;
+      document.getElementById('product-price').value = price;
+      document.getElementById('product-modal').style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('product-modal').style.display = 'none';
+    }
+
+    async function saveProduct() {
+      const id = document.getElementById('edit-id'). value;
+      const name = document.getElementById('product-name').value.trim();
+      const price = parseInt(document.getElementById('product-price').value);
+
+      if (!name || !price) return toast('Vui lòng nhập đủ thông tin!', 'error');
+
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? `${API_URL}/products/${id}` : `${API_URL}/products`;
+
+      await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ name, price })
+      });
+
+      closeModal();
+      loadAdminProducts();
+      toast(id ? 'Cập nhật thành công!' : 'Thêm sản phẩm thành công!');
+    }
+
+    async function deleteProduct(id) {
+      if (!confirm('Xóa sản phẩm này?')) return;
+      await fetch(`${API_URL}/products/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      loadAdminProducts();
+      toast('Xóa thành công!');
+    }
+
+    loadAdminProducts();
+  </script>
+</body>
+</html>

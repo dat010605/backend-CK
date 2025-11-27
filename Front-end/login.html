@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Đăng nhập</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Đăng nhập hệ thống</h2>
+    <input type="text" id="username" placeholder="Tên đăng nhập" />
+    <input type="password" id="password" placeholder="Mật khẩu" />
+    <button onclick="login()">Đăng nhập</button>
+    <p>Chưa có tài khoản? <span class="link" onclick="location.href='register.html'">Đăng ký ngay</span></p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="script.js"></script>
+  <script>
+    if (localStorage.getItem('token')) {
+      const role = localStorage.getItem('role');
+      location.href = role === 'ADMIN' ? 'admin.html' : 'products.html';
+    }
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      try {
+        const res = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('role', data.role);
+          toast('Đăng nhập thành công!');
+          location.href = data.role === 'ADMIN' ? 'admin.html' : 'products.html';
+        } else toast(data.message || 'Sai thông tin', 'error');
+      } catch { toast('Lỗi server', 'error'); }
+    }
+  </script>
+</body>
+</html>

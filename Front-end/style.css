@@ -1,0 +1,16 @@
+* { margin:0; padding:0; box-sizing:border-box; font-family: Arial, sans-serif; }
+body { background: #f0f2f5; color: #333; }
+.container { max-width: 420px; margin: 60px auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); text-align: center; }
+input { width: 100%; padding: 18px 14px 16px 14px !important; margin: 11px 0; border-radius: 12px; border: 1px solid #ddd; font-size: 16px; line-height: 2.6 !important; height: 60px; background: #fff; font-family: "Segoe UI", Tahoma, sans-serif; } input:focus { outline: none; border-color: #007bff; background: white; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); } input::placeholder { color: #888; opacity: 1; line-height: normal;}
+button { width: 100%; padding: 18px 14px; margin: 20px 0 10px 0; background: #007bff; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; height: 60px; line-height: 1.6; transition: background 0.3s;}
+button:hover { background: #0056b3; transform: translateY(-2px); }
+.header { background: #007bff; color: white; padding: 15px; border-radius: 8px 8px 0 0; margin: -40px -40px 30px; font-size: 20px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; padding: 20px; }
+.product-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+.product-card button { background: #28a745; margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+th, td { padding: 12px; border: 1px solid #ddd; text-align: center; }
+th { background: #f0f0f0; }
+.total { font-size: 28px; font-weight: bold; text-align: right; padding: 20px; color: #e67e22; }
+.checkout-btn { background: #f39c12; font-size: 20px; }
+.link { color: #007bff; cursor: pointer; text-decoration: underline; }

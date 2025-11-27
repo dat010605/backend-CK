@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sản phẩm</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+<body>
+  <div class="header">DANH SÁCH SẢN PHẨM</div>
+  <div style="padding:20px; text-align:right;">
+    <button onclick="location.href='cart.html'">Giỏ hàng (<span id="cart-count">0</span>)</button>
+    <button onclick="logout()">Đăng xuất</button>
+  </div>
+  <div id="products-list" class="grid"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="script.js"></script>
+  <script>
+    if (!checkAuth()) return;
+    async function loadProducts() {
+      const res = await fetch(`${API_URL}/products`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const products = await res.json();
+      document.getElementById('products-list').innerHTML = products.map(p => `
+        <div class="product-card">
+          <h3>${p.name}</h3>
+          <p><strong>${p.price.toLocaleString()}đ</strong></p>
+          <button onclick="addToCart(${p.id}, '${p.name}', ${p.price})">Thêm vào giỏ</button>
+        </div>
+      `).join('');
+    }
+    function addToCart(id, name, price) {
+      let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      const exist = cart.find(x => x.id === id);
+      if (exist) exist.quantity++; else cart.push({id, name, price, quantity: 1});
+      localStorage.setItem('cart', JSON.stringify(cart));
+      updateCartCount();
+      toast('Đã thêm vào giỏ!');
+    }
+    loadProducts();
+  </script>
+</body>
+</html>

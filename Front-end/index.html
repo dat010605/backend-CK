@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mini Order System</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      margin: 0;
+    }
+    .welcome {
+      background: white;
+      padding: 50px 60px;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      text-align: center;
+      animation: fadeIn 1s ease-in;
+    }
+    .welcome h1 {
+      font-size: 36px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .welcome p {
+      font-size: 18px;
+      color: #666;
+      margin-bottom: 40px;
+    }
+    .btn-group button {
+      padding: 15px 30px;
+      margin: 10px;
+      font-size: 18px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .btn-login { background: #007bff; color: white; }
+    .btn-register { background: #28a745; color: white; }
+    .btn-admin { background: #ffc107; color: black; }
+    .btn-login:hover { background: #0056b3; }
+    .btn-register:hover { background: #218838; }
+    .btn-admin:hover { background: #e0a800; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="welcome">
+    <h1>Mini Order System</h1>
+    <p>Hệ thống đặt hàng & quản lý sản phẩm</p>
+    <div class="btn-group">
+      <button class="btn-login" onclick="location.href='login.html'">Đăng nhập</button>
+      <button class="btn-register" onclick="location.href='register.html'">Đăng ký</button>
+    </div>
+    <p style="margin-top:30px; color:#888; font-size:14px;">
+    </p>
+  </div>
+
+  <!-- Tự động chuyển hướng nếu đã đăng nhập -->
+  <script>
+    if (localStorage.getItem('token')) {
+      const role = localStorage.getItem('role');
+      if (role === 'ADMIN') {
+        location.href = 'admin.html';
+      } else {
+        location.href = 'products.html';
+      }
+    }
+  </script>
+</body>
+</html>

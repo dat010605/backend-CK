@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Giỏ hàng</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+<body>
+  <div class="header">GIỎ HÀNG CỦA BẠN</div>
+  <div style="padding:20px; text-align:right;">
+    <button onclick="location.href='products.html'">Tiếp tục mua sắm</button>
+    <button onclick="logout()">Đăng xuất</button>
+  </div>
+
+  <div id="cart-items" style="padding:20px;"></div>
+  <div class="total" id="cart-total">Tổng tiền: 0đ</div>
+  <button class="checkout-btn" onclick="checkout()">Thanh toán ngay</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="script.js"></script>
+  <script>
+    if (!checkAuth()) return;
+
+    function loadCart() {
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      if (cart.length === 0) {
+        document.getElementById('cart-items').innerHTML = '<p style="text-align:center;padding:50px;font-size:18px;">Giỏ hàng trống</p>';
+        document.getElementById('cart-total').textContent = 'Tổng tiền: 0đ';
+        return;
+      }
+
+      const html = cart.map(item => `
+        <div style="background:white;padding:15px;margin:10px 20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <strong>${item.name}</strong> × ${item.quantity}<br>
+            <small>${item.price.toLocaleString()}đ / sản phẩm</small>
+          </div>
+          <div>
+            <strong>${(item.price * item.quantity).toLocaleString()}đ</strong><br>
+            <button onclick="removeFromCart(${item.id})" style="color:red;font-size:12px;">Xóa</button>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('cart-items').innerHTML = html;
+      const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+      document.getElementById('cart-total').textContent = `Tổng tiền: ${total.toLocaleString()}đ`;
+    }
+
+    async function checkout() {
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      if (cart.length === 0) return toast('Giỏ hàng trống!', 'error');
+
+      const orderDetails = cart.map(x => ({
+        productId: x.id,
+        quantity: x.quantity,
+        unitPrice: x.price
+      }));
+
+      try {
+        const res = await fetch(`${API_URL}/orders`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ orderDetails })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.removeItem('cart');
+          updateCartCount();
+          toast('Đặt hàng thành công!');
+          setTimeout(() => location.href = `success.html?id=${data.id}`, 1000);
+        } else {
+          toast(data.message || 'Lỗi đặt hàng', 'error');
+        }
+      } catch (err) {
+        toast('Lỗi kết nối server', 'error');
+      }
+    }
+
+    loadCart();
+  </script>
+</body>
+</html>

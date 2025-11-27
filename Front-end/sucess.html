@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Đặt hàng thành công</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h2 style="color:#27ae60;">Đặt hàng thành công!</h2>
+    <p>Cảm ơn bạn đã mua sắm tại cửa hàng chúng tôi</p>
+    <p>Mã đơn hàng: <strong id="order-id" style="font-size:24px;color:#e67e22;">#0000</strong></p>
+    <button onclick="location.href='products.html'">Tiếp tục mua sắm</button>
+    <button onclick="logout()" style="background:#95a5a6;margin-top:10px;">Đăng xuất</button>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    if (!checkAuth()) return;
+    const params = new URLSearchParams(location.search);
+    const orderId = params.get('id') || 'N/A';
+    document.getElementById('order-id').textContent = `#${orderId}`;
+  </script>
+</body>
+</html>
