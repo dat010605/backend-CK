@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniOrderAPI.Data;
 using MiniOrderAPI.Models;
-using MiniOrderAPI.DTOs;     // Dùng LoginDto
-using MiniOrderAPI.Services; // Dùng TokenService
+using MiniOrderAPI.DTOs;
+using MiniOrderAPI.Services;
 
 namespace MiniOrderAPI.Controllers
 {
@@ -20,10 +20,9 @@ namespace MiniOrderAPI.Controllers
             _tokenService = tokenService;
         }
 
-        // DTO dùng riêng cho đăng ký (để khớp với JSON từ frontend gửi lên)
-        public record RegisterRequest(string Username, string FullName, string Email, string Password);
+        // --- SỬA Ở ĐÂY (1): Thêm tham số Role ---
+        public record RegisterRequest(string Username, string FullName, string Email, string Password, string? Role);
 
-        // 1. API ĐĂNG KÝ: POST api/auth/register
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest dto)
         {
@@ -39,9 +38,10 @@ namespace MiniOrderAPI.Controllers
                 FullName = dto.FullName,
                 Email = dto.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                Role = "User", // Mặc định đăng ký mới là User
                 
-                // Gán giá trị rỗng để tránh lỗi nếu chưa sửa Model
+                // --- SỬA Ở ĐÂY (2): Logic lấy Role ---
+                Role = !string.IsNullOrEmpty(dto.Role) ? dto.Role : "User",
+                
                 Address = "", 
                 Phone = ""
             };
@@ -52,8 +52,6 @@ namespace MiniOrderAPI.Controllers
             return Ok(new { message = "Đăng ký thành công" });
         }
 
-        // 2. API ĐĂNG NHẬP: POST api/auth/login
-        // Đã sửa để khớp với đường dẫn Front-end gọi
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
@@ -64,10 +62,8 @@ namespace MiniOrderAPI.Controllers
                 return Unauthorized(new { message = "Sai tên đăng nhập hoặc mật khẩu" });
             }
 
-            // Tạo token
             var token = _tokenService.CreateToken(user);
 
-            // QUAN TRỌNG: Trả về cả Token và Role để Front-end phân quyền
             return Ok(new 
             { 
                 token = token, 

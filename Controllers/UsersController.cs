@@ -52,19 +52,36 @@ namespace MiniOrderAPI.Controllers
             // 2. Băm mật khẩu (Hashing)
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
+            // --- SỬA LỖI Ở ĐÂY: Logic chuẩn hóa Role ---
+            // Mục đích: Nếu Swagger gửi "admin" (chữ thường) thì tự sửa thành "Admin" (chữ hoa)
+            string roleToSave = request.Role;
+            
+            if (!string.IsNullOrEmpty(roleToSave))
+            {
+                if (roleToSave.ToLower() == "admin")
+                {
+                    roleToSave = "Admin"; // Ép về chuẩn chữ hoa đầu
+                }
+            }
+            else
+            {
+                roleToSave = "User"; // Mặc định là User nếu không gửi
+            }
+
             // 3. Tạo đối tượng User mới
-            // SỬA LỖI: Thêm các trường dữ liệu mặc định để tránh lỗi "NOT NULL constraint failed"
             var newUser = new User
             {
                 Username = request.Username,
                 PasswordHash = passwordHash,
-                Role = request.Role, // Gán role từ DTO (mặc định là "User")
                 
-                // --- BỔ SUNG CÁC TRƯỜNG BẮT BUỘC (QUAN TRỌNG) ---
+                // SỬA: Gán role bằng biến đã chuẩn hóa ở trên
+                Role = roleToSave, 
+                
+                // --- BỔ SUNG CÁC TRƯỜNG BẮT BUỘC ---
                 FullName = request.Username,           // Mặc định lấy username làm tên
-                Email = request.Username + "@system.com", // Email giả lập để không bị lỗi
-                Address = "Chưa cập nhật",             // Giá trị mặc định cho Address
-                Phone = "0000000000"                   // Giá trị mặc định cho Phone
+                Email = request.Username + "@system.com", // Email giả lập
+                Address = "Chưa cập nhật",             
+                Phone = "0000000000"                   
             };
 
             // 4. Lưu vào database

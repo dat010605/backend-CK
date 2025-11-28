@@ -2,44 +2,154 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Sản phẩm</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Danh sách sản phẩm</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <style>
+    /* CSS bổ sung riêng cho trang products để hiển thị đẹp hơn */
+    .product-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        min-height: 250px;
+    }
+    .product-name {
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #2c3e50;
+    }
+    .product-desc {
+        color: #7f8c8d;
+        font-size: 0.9em;
+        margin-bottom: 15px;
+        flex-grow: 1; /* Đẩy giá tiền xuống dưới cùng */
+        display: -webkit-box;
+        -webkit-line-clamp: 3; /* Giới hạn 3 dòng mô tả */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .product-meta {
+        border-top: 1px solid #eee;
+        padding-top: 10px;
+    }
+    .price-tag {
+        font-size: 1.3em;
+        color: #e74c3c;
+        font-weight: bold;
+    }
+    .stock-tag {
+        font-size: 0.85em;
+        color: #27ae60;
+        margin-bottom: 10px;
+    }
+    .stock-out {
+        color: #c0392b;
+        font-weight: bold;
+    }
+    button:disabled {
+        background-color: #95a5a6;
+        cursor: not-allowed;
+    }
+    button:disabled:hover {
+        transform: none;
+        background-color: #95a5a6;
+    }
+  </style>
 </head>
 <body>
-  <div class="header">DANH SÁCH SẢN PHẨM</div>
+  <div class="header">CỬA HÀNG MINI ORDER</div>
+  
   <div style="padding:20px; text-align:right;">
-    <button onclick="location.href='cart.html'">Giỏ hàng (<span id="cart-count">0</span>)</button>
-    <button onclick="logout()">Đăng xuất</button>
+    <span id="user-display" style="margin-right:15px; font-weight:bold;"></span>
+    
+    <button onclick="location.href='cart.html'" style="width:auto; display:inline-block;">
+        Giỏ hàng (<span id="cart-count">0</span>)
+    </button>
+    <button onclick="logout()" style="width:auto; display:inline-block; background:#7f8c8d; margin-left:5px;">
+        Đăng xuất
+    </button>
   </div>
-  <div id="products-list" class="grid"></div>
+
+  <div id="products-list" class="grid">
+    <p style="text-align:center; grid-column: 1/-1;">Đang tải dữ liệu...</p>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <script src="script.js"></script>
   <script>
-    if (!checkAuth()) return;
+    // 1. Kiểm tra đăng nhập
+    const auth = checkAuth(); 
+    if (!auth) {
+        // checkAuth tự redirect, code dưới đây chỉ chạy nếu có token
+    } 
+
+    // (Optional) Hiển thị tên người dùng (lấy từ localStorage nếu bạn có lưu, hoặc decode token)
+    // document.getElementById('user-display').textContent = 'Xin chào!';
+
     async function loadProducts() {
-      const res = await fetch(`${API_URL}/products`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      const products = await res.json();
-      document.getElementById('products-list').innerHTML = products.map(p => `
-        <div class="product-card">
-          <h3>${p.name}</h3>
-          <p><strong>${p.price.toLocaleString()}đ</strong></p>
-          <button onclick="addToCart(${p.id}, '${p.name}', ${p.price})">Thêm vào giỏ</button>
-        </div>
-      `).join('');
+      try {
+        const res = await fetch(`${API_URL}/products`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        if (!res.ok) throw new Error("Lỗi tải danh sách");
+
+        const products = await res.json();
+        
+        if (products.length === 0) {
+            document.getElementById('products-list').innerHTML = '<p style="text-align:center; grid-column: 1/-1;">Chưa có sản phẩm nào.</p>';
+            return;
+        }
+
+        const html = products.map(p => {
+            // Logic kiểm tra tồn kho
+            const isOutOfStock = p.stockQuantity <= 0;
+            const btnText = isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ';
+            const stockText = isOutOfStock 
+                ? '<span class="stock-out">Tạm hết hàng</span>' 
+                : `<span class="stock-tag">Còn lại: ${p.stockQuantity}</span>`;
+            
+            // Xử lý dấu nháy đơn trong tên sản phẩm để tránh lỗi JS
+            const safeName = p.name.replace(/'/g, "\\'");
+
+            return `
+            <div class="product-card">
+                <div>
+                    <div class="product-name">${p.name}</div>
+                    <div class="product-desc">${p.description || "Chưa có mô tả chi tiết."}</div>
+                </div>
+                
+                <div class="product-meta">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span class="price-tag">${p.price.toLocaleString()}đ</span>
+                        ${stockText}
+                    </div>
+                    
+                    <button 
+                        onclick="addToCart(${p.id}, '${safeName}', ${p.price})" 
+                        ${isOutOfStock ? 'disabled' : ''}>
+                        ${btnText}
+                    </button>
+                </div>
+            </div>
+            `;
+        }).join('');
+
+        document.getElementById('products-list').innerHTML = html;
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('products-list').innerHTML = '<p style="text-align:center; color:red;">Không thể tải dữ liệu server.</p>';
+      }
     }
-    function addToCart(id, name, price) {
-      let cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      const exist = cart.find(x => x.id === id);
-      if (exist) exist.quantity++; else cart.push({id, name, price, quantity: 1});
-      localStorage.setItem('cart', JSON.stringify(cart));
-      updateCartCount();
-      toast('Đã thêm vào giỏ!');
-    }
+
+    // Gọi hàm tải sản phẩm
     loadProducts();
+    
+    // Lưu ý: Hàm addToCart() đã có sẵn trong file script.js được nhúng vào
   </script>
 </body>
 </html>

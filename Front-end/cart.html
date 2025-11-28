@@ -6,81 +6,265 @@
   <title>Giỏ hàng</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <style>
+    /* CSS cho Modal Thanh Toán */
+    .modal {
+        display: none; 
+        position: fixed; 
+        z-index: 1000; 
+        left: 0; 
+        top: 0; 
+        width: 100%; 
+        height: 100%; 
+        background-color: rgba(0,0,0,0.5); /* Màu nền mờ */
+        animation: fadeIn 0.3s;
+    }
+
+    .modal-content {
+        background-color: #fff;
+        margin: 5% auto; /* Cách trên 5% */
+        padding: 30px;
+        border-radius: 12px;
+        width: 90%; 
+        max-width: 500px; /* Giới hạn chiều rộng */
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        position: relative;
+        animation: slideIn 0.3s;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideIn { from { transform: translateY(-50px); } to { transform: translateY(0); } }
+
+    .payment-group { margin-bottom: 15px; text-align: left; }
+    .payment-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+    .payment-group input, .payment-group select, .payment-group textarea {
+        width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px;
+    }
+
+    .payment-methods { display: flex; gap: 10px; margin-top: 5px; }
+    .payment-option {
+        flex: 1; border: 1px solid #ddd; padding: 10px; border-radius: 6px; 
+        cursor: pointer; text-align: center; font-size: 14px;
+    }
+    .payment-option.active { border-color: #007bff; background: #e3f2fd; color: #007bff; font-weight: bold; }
+    
+    .summary-row { display: flex; justify-content: space-between; margin: 10px 0; font-size: 16px; }
+    .summary-total { font-size: 20px; font-weight: bold; color: #e74c3c; border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;}
+
+    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #aaa; }
+    .close-btn:hover { color: #000; }
+  </style>
 </head>
 <body>
   <div class="header">GIỎ HÀNG CỦA BẠN</div>
   <div style="padding:20px; text-align:right;">
-    <button onclick="location.href='products.html'">Tiếp tục mua sắm</button>
-    <button onclick="logout()">Đăng xuất</button>
+    <button onclick="location.href='products.html'" style="width:auto; display:inline-block;">Tiếp tục mua sắm</button>
   </div>
 
-  <div id="cart-items" style="padding:20px;"></div>
-  <div class="total" id="cart-total">Tổng tiền: 0đ</div>
-  <button class="checkout-btn" onclick="checkout()">Thanh toán ngay</button>
+  <div id="cart-items" style="padding:20px; max-width: 800px; margin: 0 auto;"></div>
+  
+  <div class="container" style="max-width: 800px; margin-top: 0; box-shadow: none; background: transparent;">
+      <div class="total" id="cart-total" style="text-align: right;">Tổng tiền: 0đ</div>
+      <button class="checkout-btn" onclick="openPaymentModal()">TIẾN HÀNH THANH TOÁN</button>
+  </div>
+
+  <div id="payment-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closePaymentModal()">&times;</span>
+        <h2 style="text-align: center; color: #007bff; margin-bottom: 20px;">Xác nhận thanh toán</h2>
+        
+        <div class="payment-group">
+            <label>Địa chỉ nhận hàng:</label>
+            <textarea id="ship-address" rows="2" placeholder="Nhập địa chỉ nhận hàng chi tiết..."></textarea>
+        </div>
+
+        <div class="payment-group">
+            <label>Số điện thoại:</label>
+            <input type="text" id="ship-phone" placeholder="Nhập số điện thoại người nhận..." />
+        </div>
+
+        <div class="payment-group">
+            <label>Phương thức thanh toán:</label>
+            <div class="payment-methods">
+                <div class="payment-option active" onclick="selectMethod(this, 'COD')">Tiền mặt (COD)</div>
+                <div class="payment-option" onclick="selectMethod(this, 'BANK')">Chuyển khoản</div>
+                <div class="payment-option" onclick="selectMethod(this, 'MOMO')">Ví MoMo</div>
+            </div>
+        </div>
+
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 20px;">
+            <div class="summary-row">
+                <span>Tạm tính:</span>
+                <span id="modal-subtotal">0đ</span>
+            </div>
+            <div class="summary-row">
+                <span>Phí vận chuyển:</span>
+                <span>Miễn phí</span>
+            </div>
+            <div class="summary-row summary-total">
+                <span>Tổng thanh toán:</span>
+                <span id="modal-total">0đ</span>
+            </div>
+        </div>
+
+        <button onclick="submitOrder()" style="margin-top: 20px; background: #27ae60;">ĐẶT HÀNG NGAY</button>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <script src="script.js"></script>
   <script>
-    if (!checkAuth()) return;
+    if (!checkAuth()) { /* Tự động redirect trong hàm checkAuth */ }
+
+    // Biến lưu phương thức thanh toán đang chọn
+    let currentPaymentMethod = 'COD';
 
     function loadCart() {
       const cart = JSON.parse(localStorage.getItem('cart') || '[]');
       if (cart.length === 0) {
-        document.getElementById('cart-items').innerHTML = '<p style="text-align:center;padding:50px;font-size:18px;">Giỏ hàng trống</p>';
+        document.getElementById('cart-items').innerHTML = '<p style="text-align:center;padding:50px;font-size:18px;color:#888;">Giỏ hàng của bạn đang trống</p>';
         document.getElementById('cart-total').textContent = 'Tổng tiền: 0đ';
+        document.querySelector('.checkout-btn').style.display = 'none'; // Ẩn nút thanh toán
         return;
       }
 
+      document.querySelector('.checkout-btn').style.display = 'block'; // Hiện nút thanh toán
+
       const html = cart.map(item => `
-        <div style="background:white;padding:15px;margin:10px 20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <strong>${item.name}</strong> × ${item.quantity}<br>
-            <small>${item.price.toLocaleString()}đ / sản phẩm</small>
+        <div style="background:white;padding:15px;margin-bottom:15px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.05);display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex; align-items:center;">
+            <div style="width:50px;height:50px;background:#eee;border-radius:4px;margin-right:15px;display:flex;align-items:center;justify-content:center;color:#aaa;">IMG</div>
+            <div>
+                <strong style="font-size:16px;">${item.name}</strong><br>
+                <small style="color:#666;">${item.price.toLocaleString()}đ x 
+                    <input type="number" min="1" value="${item.quantity}" 
+                        style="width:50px;padding:2px;height:auto;border:1px solid #ddd;text-align:center;"
+                        onchange="updateQuantity(${item.id}, this.value)">
+                </small>
+            </div>
           </div>
-          <div>
-            <strong>${(item.price * item.quantity).toLocaleString()}đ</strong><br>
-            <button onclick="removeFromCart(${item.id})" style="color:red;font-size:12px;">Xóa</button>
+          <div style="text-align:right;">
+            <strong style="color:#007bff;display:block;margin-bottom:5px;">${(item.price * item.quantity).toLocaleString()}đ</strong>
+            <button onclick="removeFromCart(${item.id})" style="background:none;color:#e74c3c;border:none;padding:0;font-size:14px;text-decoration:underline;width:auto;height:auto;">Xóa</button>
           </div>
         </div>
       `).join('');
 
       document.getElementById('cart-items').innerHTML = html;
+      
       const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
       document.getElementById('cart-total').textContent = `Tổng tiền: ${total.toLocaleString()}đ`;
     }
 
-    async function checkout() {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      if (cart.length === 0) return toast('Giỏ hàng trống!', 'error');
-
-      const orderDetails = cart.map(x => ({
-        productId: x.id,
-        quantity: x.quantity,
-        unitPrice: x.price
-      }));
-
-      try {
-        const res = await fetch(`${API_URL}/orders`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({ orderDetails })
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-          localStorage.removeItem('cart');
-          updateCartCount();
-          toast('Đặt hàng thành công!');
-          setTimeout(() => location.href = `success.html?id=${data.id}`, 1000);
-        } else {
-          toast(data.message || 'Lỗi đặt hàng', 'error');
+    // Cập nhật số lượng trực tiếp
+    function updateQuantity(id, newQty) {
+        let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const item = cart.find(x => x.id === id);
+        if (item) {
+            item.quantity = parseInt(newQty);
+            if(item.quantity < 1) item.quantity = 1;
+            localStorage.setItem('cart', JSON.stringify(cart));
+            loadCart();
+            updateCartCount(); // Hàm từ script.js
         }
-      } catch (err) {
-        toast('Lỗi kết nối server', 'error');
-      }
+    }
+
+    // --- LOGIC MODAL THANH TOÁN ---
+
+    function openPaymentModal() {
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        if (cart.length === 0) return toast('Giỏ hàng trống!', 'error');
+
+        // Tính tổng tiền
+        const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+        const totalStr = total.toLocaleString() + 'đ';
+
+        // Điền dữ liệu vào modal
+        document.getElementById('modal-subtotal').textContent = totalStr;
+        document.getElementById('modal-total').textContent = totalStr;
+
+        // Hiển thị modal
+        document.getElementById('payment-modal').style.display = 'block';
+    }
+
+    function closePaymentModal() {
+        document.getElementById('payment-modal').style.display = 'none';
+    }
+
+    // Chọn phương thức thanh toán (UI)
+    function selectMethod(el, method) {
+        // Xóa class active ở tất cả option
+        document.querySelectorAll('.payment-option').forEach(d => d.classList.remove('active'));
+        // Thêm class active cho option được chọn
+        el.classList.add('active');
+        currentPaymentMethod = method;
+    }
+
+    // GỬI ĐƠN HÀNG (Gọi API)
+    async function submitOrder() {
+        const address = document.getElementById('ship-address').value.trim();
+        const phone = document.getElementById('ship-phone').value.trim();
+
+        if (!address || !phone) {
+            return toast('Vui lòng nhập địa chỉ và số điện thoại!', 'error');
+        }
+
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        
+        // Chuẩn bị dữ liệu gửi lên Backend
+        const orderDetails = cart.map(x => ({
+            productId: x.id,
+            quantity: x.quantity
+        }));
+
+        try {
+            // Disable nút để tránh click nhiều lần
+            const btn = document.querySelector('#payment-modal button');
+            btn.disabled = true;
+            btn.textContent = "Đang xử lý...";
+
+            const res = await fetch(`${API_URL}/orders`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ 
+                    items: orderDetails
+                    // Lưu ý: Backend hiện tại chưa lưu address/phone của từng đơn hàng
+                    // Nếu muốn lưu, bạn cần update Backend (CreateOrderDto)
+                })
+            });
+
+            const data = await res.json();
+            
+            if (res.ok) {
+                localStorage.removeItem('cart');
+                updateCartCount();
+                closePaymentModal();
+                toast('Đặt hàng thành công!');
+                // Chuyển hướng sau 1.5s
+                setTimeout(() => location.href = `sucess.html?id=${data.id}`, 1500);
+            } else {
+                toast(data.message || 'Lỗi đặt hàng', 'error');
+                btn.disabled = false;
+                btn.textContent = "ĐẶT HÀNG NGAY";
+            }
+        } catch (err) {
+            console.error(err);
+            toast('Lỗi kết nối server', 'error');
+            const btn = document.querySelector('#payment-modal button');
+            btn.disabled = false;
+            btn.textContent = "ĐẶT HÀNG NGAY";
+        }
+    }
+
+    // Đóng modal khi click ra ngoài
+    window.onclick = function(event) {
+        const modal = document.getElementById('payment-modal');
+        if (event.target == modal) {
+            closePaymentModal();
+        }
     }
 
     loadCart();
