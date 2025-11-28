@@ -6,36 +6,27 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
   <style>
-      /* CSS CHO ADMIN TAB */
-      .sidebar {
-          display: flex; gap: 10px; padding: 20px; background: #fff; border-bottom: 1px solid #ddd;
-      }
-      .tab-btn {
-          padding: 10px 20px; border: none; background: #eee; cursor: pointer; border-radius: 5px; font-weight: bold;
-      }
-      .tab-btn.active {
-          background: #007bff; color: white;
-      }
+      .sidebar { display: flex; gap: 10px; padding: 20px; background: #fff; border-bottom: 1px solid #ddd; }
+      .tab-btn { padding: 10px 20px; border: none; background: #eee; cursor: pointer; border-radius: 5px; font-weight: bold; }
+      .tab-btn.active { background: #007bff; color: white; }
       .section { display: none; padding: 20px; }
       .section.active { display: block; }
-
-      /* Table Styles */
       table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; }
       th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
       th { background: #f8f9fa; }
-      
       .role-badge { padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
       .role-admin { background: #e74c3c; color: white; }
       .role-user { background: #2ecc71; color: white; }
+      .status-select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
   <div class="header">HỆ THỐNG QUẢN TRỊ (ADMIN)</div>
 
   <div class="sidebar">
-      <button class="tab-btn active" onclick="switchTab('products')">📦 Quản lý Sản phẩm</button>
-      <button class="tab-btn" onclick="switchTab('users')">👥 Quản lý Người dùng</button>
-      <button class="tab-btn" onclick="logout()" style="margin-left:auto; background:#95a5a6; color:white;">Đăng xuất</button>
+      <button class="tab-btn active" onclick="switchTab('products')">📦 Sản phẩm</button>
+      <button class="tab-btn" onclick="switchTab('users')">👥 Người dùng</button>
+      <button class="tab-btn" onclick="switchTab('orders')">📝 Đơn hàng</button> <button class="tab-btn" onclick="logout()" style="margin-left:auto; background:#95a5a6; color:white;">Đăng xuất</button>
   </div>
 
   <div id="tab-products" class="section active">
@@ -50,6 +41,10 @@
           <button onclick="openUserModal()" style="width:auto; background:#28a745;">+ Thêm User mới</button>
       </div>
       <div id="user-table">Đang tải...</div>
+  </div>
+
+  <div id="tab-orders" class="section">
+      <div id="order-table">Đang tải đơn hàng...</div>
   </div>
 
   <div id="modal-product" class="modal" style="display:none;">
@@ -72,24 +67,17 @@
     <div class="modal-content">
       <h3 id="u-modal-title">Thông tin User</h3>
       <input type="hidden" id="u-id" />
-      
-      <label>Tên đăng nhập:</label>
-      <input type="text" id="u-username" placeholder="Không thể sửa khi cập nhật" />
-      
-      <label>Mật khẩu:</label>
-      <input type="password" id="u-password" placeholder="Để trống nếu không đổi pass" />
-
+      <label>Tên đăng nhập:</label><input type="text" id="u-username" placeholder="Không thể sửa khi cập nhật" />
+      <label>Mật khẩu:</label><input type="password" id="u-password" placeholder="Để trống nếu không đổi pass" />
       <label>Họ tên:</label><input type="text" id="u-fullname" />
       <label>Email:</label><input type="text" id="u-email" />
       <label>SĐT:</label><input type="text" id="u-phone" />
       <label>Địa chỉ:</label><input type="text" id="u-address" />
-      
       <label>Quyền hạn:</label>
       <select id="u-role" style="width:100%; padding:10px; margin-bottom:10px;">
-          <option value="User">User (Khách hàng)</option>
-          <option value="Admin">Admin (Quản trị)</option>
+          <option value="User">User</option>
+          <option value="Admin">Admin</option>
       </select>
-
       <div style="text-align:right; margin-top:10px;">
           <button onclick="saveUser()">Lưu User</button>
           <button onclick="closeModal('modal-user')" style="background:#95a5a6;">Hủy</button>
@@ -100,27 +88,24 @@
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <script src="script.js"></script>
   <script>
-    // Kiểm tra quyền
     if (!localStorage.getItem('token') || (localStorage.getItem('role') || '').toLowerCase() !== 'admin') {
         location.href = 'login.html';
     }
 
-    // --- CHUYỂN TAB ---
     function switchTab(tab) {
         document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        
         document.getElementById(`tab-${tab}`).classList.add('active');
-        // Highlight button (tìm nút chứa onclick tương ứng - cách đơn giản)
         event.target.classList.add('active');
 
         if (tab === 'products') loadProducts();
         if (tab === 'users') loadUsers();
+        if (tab === 'orders') loadOrders(); // THÊM DÒNG NÀY
     }
 
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    // ================= QUẢN LÝ SẢN PHẨM =================
+    // --- SẢN PHẨM ---
     async function loadProducts() {
         try {
             const res = await fetch(`${API_URL}/products`);
@@ -136,57 +121,20 @@
                         <button onclick="editProduct(${p.id}, '${p.name}', ${p.price}, ${p.stockQuantity}, '${p.description}', '${p.imageUrl}')">Sửa</button>
                         <button onclick="deleteItem('products', ${p.id})" style="background:#e74c3c;">Xóa</button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`).join('');
             document.getElementById('product-table').innerHTML = `<table><tr><th>ID</th><th>Ảnh</th><th>Tên</th><th>Giá</th><th>Kho</th><th>Hành động</th></tr>${html}</table>`;
         } catch(e) { console.error(e); }
     }
+    // (Giữ nguyên các hàm editProduct, openProductModal, saveProduct...)
+    function openProductModal() { document.getElementById('p-id').value=''; document.getElementById('p-name').value=''; document.getElementById('p-price').value=''; document.getElementById('p-stock').value=''; document.getElementById('p-desc').value=''; document.getElementById('p-img').value=''; document.getElementById('modal-product').style.display='block'; }
+    function editProduct(id,name,price,stock,desc,img){ document.getElementById('p-id').value=id; document.getElementById('p-name').value=name; document.getElementById('p-price').value=price; document.getElementById('p-stock').value=stock; document.getElementById('p-desc').value=desc; document.getElementById('p-img').value=img==='undefined'?'':img; document.getElementById('modal-product').style.display='block'; }
+    async function saveProduct(){ const id=document.getElementById('p-id').value; const method=id?'PUT':'POST'; const url=id?`${API_URL}/products/${id}`:`${API_URL}/products`; const body={ name:document.getElementById('p-name').value, price:parseFloat(document.getElementById('p-price').value), stockQuantity:parseInt(document.getElementById('p-stock').value), description:document.getElementById('p-desc').value, imageUrl:document.getElementById('p-img').value }; await sendRequest(url,method,body,()=>{ closeModal('modal-product'); loadProducts(); }); }
 
-    function openProductModal() {
-        document.getElementById('p-id').value = '';
-        document.getElementById('p-name').value = '';
-        document.getElementById('p-price').value = '';
-        document.getElementById('p-stock').value = '';
-        document.getElementById('p-desc').value = '';
-        document.getElementById('p-img').value = '';
-        document.getElementById('modal-product').style.display = 'block';
-    }
 
-    function editProduct(id, name, price, stock, desc, img) {
-        document.getElementById('p-id').value = id;
-        document.getElementById('p-name').value = name;
-        document.getElementById('p-price').value = price;
-        document.getElementById('p-stock').value = stock;
-        document.getElementById('p-desc').value = desc;
-        document.getElementById('p-img').value = img === 'undefined' ? '' : img;
-        document.getElementById('modal-product').style.display = 'block';
-    }
-
-    async function saveProduct() {
-        const id = document.getElementById('p-id').value;
-        const method = id ? 'PUT' : 'POST';
-        const url = id ? `${API_URL}/products/${id}` : `${API_URL}/products`;
-        
-        const body = {
-            name: document.getElementById('p-name').value,
-            price: parseFloat(document.getElementById('p-price').value),
-            stockQuantity: parseInt(document.getElementById('p-stock').value),
-            description: document.getElementById('p-desc').value,
-            imageUrl: document.getElementById('p-img').value
-        };
-
-        await sendRequest(url, method, body, () => {
-            closeModal('modal-product');
-            loadProducts();
-        });
-    }
-
-    // ================= QUẢN LÝ USER =================
+    // --- USER ---
     async function loadUsers() {
         try {
-            const res = await fetch(`${API_URL}/users`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-            });
+            const res = await fetch(`${API_URL}/users`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
             const data = await res.json();
             const html = data.map(u => `
                 <tr>
@@ -199,72 +147,60 @@
                         <button onclick="editUser(${u.id}, '${u.username}', '${u.fullName}', '${u.email}', '${u.phone}', '${u.address}', '${u.role}')">Sửa</button>
                         <button onclick="deleteItem('users', ${u.id})" style="background:#e74c3c;">Xóa</button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`).join('');
             document.getElementById('user-table').innerHTML = `<table><tr><th>ID</th><th>User</th><th>Tên</th><th>Email</th><th>Quyền</th><th>Hành động</th></tr>${html}</table>`;
         } catch(e) { console.error(e); }
     }
+    // (Giữ nguyên các hàm editUser, openUserModal, saveUser...)
+    function openUserModal(){ document.getElementById('u-id').value=''; document.getElementById('u-username').value=''; document.getElementById('u-username').disabled=false; document.getElementById('u-password').value=''; document.getElementById('u-fullname').value=''; document.getElementById('u-email').value=''; document.getElementById('u-phone').value=''; document.getElementById('u-address').value=''; document.getElementById('u-role').value='User'; document.getElementById('modal-user').style.display='block'; }
+    function editUser(id,user,name,email,phone,addr,role){ document.getElementById('u-id').value=id; document.getElementById('u-username').value=user; document.getElementById('u-username').disabled=true; document.getElementById('u-password').value=''; document.getElementById('u-fullname').value=name==='null'?'':name; document.getElementById('u-email').value=email==='null'?'':email; document.getElementById('u-phone').value=phone==='null'?'':phone; document.getElementById('u-address').value=addr==='null'?'':addr; document.getElementById('u-role').value=role; document.getElementById('modal-user').style.display='block'; }
+    async function saveUser(){ const id=document.getElementById('u-id').value; const isEdit=!!id; const url=isEdit?`${API_URL}/users/${id}`:`${API_URL}/users`; const method=isEdit?'PUT':'POST'; const body={ username:document.getElementById('u-username').value, password:document.getElementById('u-password').value, fullName:document.getElementById('u-fullname').value, email:document.getElementById('u-email').value, phone:document.getElementById('u-phone').value, address:document.getElementById('u-address').value, role:document.getElementById('u-role').value }; if(!isEdit&&(!body.username||!body.password)){ return toast('Vui lòng nhập Username và Password!','error'); } await sendRequest(url,method,body,()=>{ closeModal('modal-user'); loadUsers(); }); }
 
-    function openUserModal() {
-        document.getElementById('u-id').value = '';
-        document.getElementById('u-username').value = '';
-        document.getElementById('u-username').disabled = false; // Cho nhập khi tạo mới
-        document.getElementById('u-password').value = '';
-        document.getElementById('u-fullname').value = '';
-        document.getElementById('u-email').value = '';
-        document.getElementById('u-phone').value = '';
-        document.getElementById('u-address').value = '';
-        document.getElementById('u-role').value = 'User';
-        document.getElementById('modal-user').style.display = 'block';
+    // --- ĐƠN HÀNG (MỚI THÊM) ---
+    async function loadOrders() {
+        try {
+            const res = await fetch(`${API_URL}/orders`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+            const data = await res.json();
+            
+            const html = data.map(o => `
+                <tr>
+                    <td>${o.id}</td>
+                    <td>${o.user ? o.user.username : 'Ẩn danh'}</td>
+                    <td>${new Date(o.orderDate).toLocaleString()}</td>
+                    <td>${o.totalAmount.toLocaleString()}đ</td>
+                    <td>
+                        <select class="status-select" onchange="updateStatus(${o.id}, this.value)">
+                            <option value="Chờ duyệt" ${o.status=='Chờ duyệt'?'selected':''}>Chờ duyệt</option>
+                            <option value="Đã duyệt" ${o.status=='Đã duyệt'?'selected':''}>Đã duyệt</option>
+                            <option value="Đang giao" ${o.status=='Đang giao'?'selected':''}>Đang giao</option>
+                            <option value="Đã hủy" ${o.status=='Đã hủy'?'selected':''}>Đã hủy</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button onclick="deleteItem('orders', ${o.id})" style="background:#e74c3c;">Xóa</button>
+                    </td>
+                </tr>`).join('');
+            document.getElementById('order-table').innerHTML = `<table><tr><th>ID</th><th>Khách</th><th>Ngày</th><th>Tổng tiền</th><th>Trạng thái</th><th>Hành động</th></tr>${html}</table>`;
+        } catch(e) { console.error(e); }
     }
 
-    function editUser(id, user, name, email, phone, addr, role) {
-        document.getElementById('u-id').value = id;
-        document.getElementById('u-username').value = user;
-        document.getElementById('u-username').disabled = true; // Không sửa username cũ
-        document.getElementById('u-password').value = ''; // Reset pass
-        document.getElementById('u-fullname').value = name === 'null' ? '' : name;
-        document.getElementById('u-email').value = email === 'null' ? '' : email;
-        document.getElementById('u-phone').value = phone === 'null' ? '' : phone;
-        document.getElementById('u-address').value = addr === 'null' ? '' : addr;
-        document.getElementById('u-role').value = role;
-        document.getElementById('modal-user').style.display = 'block';
-    }
-
-    async function saveUser() {
-        const id = document.getElementById('u-id').value;
-        const isEdit = !!id;
-        const url = isEdit ? `${API_URL}/users/${id}` : `${API_URL}/users`;
-        const method = isEdit ? 'PUT' : 'POST';
-
-        const body = {
-            username: document.getElementById('u-username').value,
-            password: document.getElementById('u-password').value,
-            fullName: document.getElementById('u-fullname').value,
-            email: document.getElementById('u-email').value,
-            phone: document.getElementById('u-phone').value,
-            address: document.getElementById('u-address').value,
-            role: document.getElementById('u-role').value
-        };
-
-        // Validate cơ bản
-        if (!isEdit && (!body.username || !body.password)) {
-            return toast('Vui lòng nhập Username và Password!', 'error');
-        }
-
-        await sendRequest(url, method, body, () => {
-            closeModal('modal-user');
-            loadUsers();
+    async function updateStatus(id, newStatus) {
+        await fetch(`${API_URL}/orders/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify(newStatus)
         });
+        toast('Cập nhật trạng thái thành công!');
     }
 
-    // ================= HÀM CHUNG =================
+    // --- CHUNG ---
     async function deleteItem(type, id) {
         if (!confirm('Bạn chắc chắn muốn xóa?')) return;
         const url = `${API_URL}/${type}/${id}`;
         await sendRequest(url, 'DELETE', null, () => {
             if (type === 'products') loadProducts();
-            else loadUsers();
+            else if (type === 'users') loadUsers();
+            else loadOrders();
         });
     }
 
@@ -272,29 +208,16 @@
         try {
             const options = {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             };
             if (body) options.body = JSON.stringify(body);
-
             const res = await fetch(url, options);
             const data = await res.json();
-
-            if (res.ok) {
-                toast('Thành công!');
-                if (onSuccess) onSuccess();
-            } else {
-                toast(data.message || 'Có lỗi xảy ra', 'error');
-            }
-        } catch (err) {
-            console.error(err);
-            toast('Lỗi kết nối server', 'error');
-        }
+            if (res.ok) { toast('Thành công!'); if (onSuccess) onSuccess(); } 
+            else { toast(data.message || 'Có lỗi xảy ra', 'error'); }
+        } catch (err) { console.error(err); toast('Lỗi kết nối server', 'error'); }
     }
 
-    // Mặc định load tab sản phẩm
     loadProducts();
   </script>
 </body>
