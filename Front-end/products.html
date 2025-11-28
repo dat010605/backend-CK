@@ -1,100 +1,168 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Cửa hàng Mini Order</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-  <style>
-    /* CSS nội bộ cho danh sách sản phẩm (giữ nguyên độ đẹp) */
-    .container { max-width: 1200px; margin: 80px auto 20px; padding: 20px; } /* Cách top 80px để tránh đè menu */
-    .product-card {
-        display: flex; flex-direction: column; justify-content: space-between;
-        height: 100%; min-height: 280px; transition: transform 0.2s;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cửa hàng Mini Order</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <style>
+    /* CSS nội bộ cho danh sách sản phẩm (giữ nguyên độ đẹp) */
+    .container { max-width: 1200px; margin: 80px auto 20px; padding: 20px; } /* Cách top 80px để tránh đè menu */
+    .product-card {
+        display: flex; flex-direction: column; justify-content: space-between;
+        height: 100%; min-height: 280px; transition: transform 0.2s;
+        border: 1px solid #e0e0e0; /* Thêm border nhẹ */
+        border-radius: 8px; /* Bo góc */
+        padding: 15px; /* Thêm padding */
+    }
+    .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+    .product-name { font-size: 1.2em; font-weight: bold; margin-bottom: 5px; color: #2c3e50; }
+    .product-desc { color: #7f8c8d; font-size: 0.9em; margin-bottom: 15px; flex-grow: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .price-tag { font-size: 1.3em; color: #e74c3c; font-weight: bold; }
+    .stock-tag { font-size: 0.85em; color: #27ae60; background: #e8f8f5; padding: 3px 8px; border-radius: 4px; }
+    .stock-out { color: #c0392b; font-weight: bold; background: #fadbd8; padding: 3px 8px; border-radius: 4px; }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
     }
-    .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-    .product-name { font-size: 1.2em; font-weight: bold; margin-bottom: 5px; color: #2c3e50; }
-    .product-desc { color: #7f8c8d; font-size: 0.9em; margin-bottom: 15px; flex-grow: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .price-tag { font-size: 1.3em; color: #e74c3c; font-weight: bold; }
-    .stock-tag { font-size: 0.85em; color: #27ae60; background: #e8f8f5; padding: 3px 8px; border-radius: 4px; }
-    .stock-out { color: #c0392b; font-weight: bold; background: #fadbd8; padding: 3px 8px; border-radius: 4px; }
-  </style>
+    /* Thêm style cho nút */
+    .product-meta button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    .product-meta button:hover:not(:disabled) {
+        background-color: #0056b3;
+    }
+    .product-meta button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+  </style>
 </head>
 <body>
 
-  <nav class="navbar">
-    <div class="nav-brand" onclick="location.href='products.html'">
-       🛒 Mini Order
-    </div>
+  <nav class="navbar">
+    <div class="nav-brand" onclick="location.href='products.html'">
+       🛒 Mini Order
+    </div>
+    
+    <div class="nav-links">
+        <a href="products.html" class="active">Sản phẩm</a>
+        <a href="cart.html" class="cart-btn">
+            Giỏ hàng <span class="badge" id="cart-count">0</span>
+        </a>
+        <div class="user-menu">
+            <span id="user-display">Khách</span>
+            <button onclick="logout()" class="btn-logout">Đăng xuất</button>
+        </div>
+    </div>
+  </nav>
+
+  <div class="container" style="box-shadow:none; background:transparent;">
+      <h2 style="margin-bottom: 20px; border-left: 5px solid #007bff; padding-left: 10px; color: #333;">
+          Danh sách sản phẩm mới nhất
+      </h2>
+
+      <div id="products-list" class="grid">
+        <p style="text-align:center; grid-column: 1/-1;">Đang tải dữ liệu...</p>
+      </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="script.js"></script>
+  <script>
+    // --- Bổ sung các biến và hàm cần thiết để chạy độc lập ---
+    // Giả lập API_URL nếu chưa được định nghĩa trong script.js
+    const API_URL = window.API_URL || 'http://localhost:5194/api'; 
+    // Mảng mô phỏng giỏ hàng
+    let cartItems = []; 
     
-    <div class="nav-links">
-        <a href="products.html" class="active">Sản phẩm</a>
-        <a href="cart.html" class="cart-btn">
-            Giỏ hàng <span class="badge" id="cart-count">0</span>
-        </a>
-        <div class="user-menu">
-            <span id="user-display">Khách</span>
-            <button onclick="logout()" class="btn-logout">Đăng xuất</button>
-        </div>
-    </div>
-  </nav>
-
-  <div class="container" style="box-shadow:none; background:transparent;">
-      <h2 style="margin-bottom: 20px; border-left: 5px solid #007bff; padding-left: 10px; color: #333;">
-          Danh sách sản phẩm mới nhất
-      </h2>
-
-      <div id="products-list" class="grid">
-        <p style="text-align:center; grid-column: 1/-1;">Đang tải dữ liệu...</p>
-      </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-  <script src="script.js"></script>
-  <script>
-    // Logic JS cũ giữ nguyên
-    const auth = checkAuth(); 
-    
-    // Hiển thị tên user nếu có
-    if (localStorage.getItem('username')) {
-        document.getElementById('user-display').textContent = localStorage.getItem('username');
+    // Hàm cập nhật số lượng sản phẩm trên icon Giỏ hàng
+    function updateCartCount() {
+        const totalCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+        document.getElementById('cart-count').textContent = totalCount;
     }
 
-    async function loadProducts() {
-      try {
-        const res = await fetch(`${API_URL}/products`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
-        if (!res.ok) throw new Error("Lỗi tải danh sách");
-        const products = await res.json();
-        
-        if (products.length === 0) {
-            document.getElementById('products-list').innerHTML = '<p style="text-align:center; grid-column: 1/-1;">Chưa có sản phẩm nào.</p>';
-            return;
-        }
+    // Hàm giả lập Thêm vào Giỏ hàng (dùng Toastify)
+    function addToCart(productId, name, price) {
+        const existingItem = cartItems.find(item => item.id === productId);
 
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cartItems.push({ id: productId, name: name, price: price, quantity: 1 });
+        }
+        
+        updateCartCount();
+
+        Toastify({
+            text: `Đã thêm 1 x ${name} vào giỏ hàng!`,
+            duration: 3000,
+            close: true,
+            gravity: "top",
+            position: "right",
+            backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)",
+        }).showToast();
+    }
+    
+    // Hàm giả lập logout (dùng để tránh lỗi)
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        window.location.href = 'login.html'; // Giả định có trang login
+    }
+    // Hàm giả lập checkAuth (dùng để tránh lỗi)
+    function checkAuth() {
+        return localStorage.getItem('token') ? true : false;
+    }
+
+    // --- Danh sách 10 Sản phẩm cố định (hardcoded) ---
+    const staticProducts = [
+        { id: 1, name: "Áo Phông Cotton", price: 200000, stockQuantity: 50, description: "Chất liệu cotton 100%, thoáng mát, phù hợp mùa hè, nhiều màu sắc." },
+        { id: 2, name: "Quần Jeans Slim Fit", price: 500000, stockQuantity: 25, description: "Thiết kế ôm vừa vặn, co giãn nhẹ, phong cách trẻ trung và năng động." },
+        { id: 3, name: "Giày Thể Thao Pro-X", price: 1200000, stockQuantity: 10, description: "Đế đệm khí, siêu nhẹ, lý tưởng cho chạy bộ và hoạt động ngoài trời." },
+        { id: 4, name: "Đồng Hồ Smartwatch S2", price: 3500000, stockQuantity: 5, description: "Theo dõi sức khỏe, pin trâu, chống nước tuyệt đối, kết nối Bluetooth." },
+        { id: 5, name: "Balo Laptop Da PU", price: 650000, stockQuantity: 30, description: "Chứa laptop 15.6 inch, thiết kế sang trọng, bền bỉ và chống thấm nước." },
+        { id: 6, name: "Tai Nghe Không Dây ANC", price: 890000, stockQuantity: 15, description: "Khử tiếng ồn chủ động (ANC), âm thanh chất lượng cao, sạc nhanh USB-C." },
+        { id: 7, name: "Sạc Dự Phòng 10000mAh", price: 320000, stockQuantity: 0, description: "Cổng sạc nhanh USB-C, nhỏ gọn, tiện lợi mang theo. (Đang chờ nhập hàng)." },
+        { id: 8, name: "Móc Khóa Titan Đa Năng", price: 50000, stockQuantity: 100, description: "Chất liệu Titan siêu nhẹ, không gỉ sét, tích hợp mở chai." },
+        { id: 9, name: "Bàn Phím Cơ RK61", price: 950000, stockQuantity: 8, description: "Kích thước 60%, Switch Red/Brown tùy chọn, đèn RGB rực rỡ." },
+        { id: 10, name: "Chuột Gaming Logitech G102", price: 400000, stockQuantity: 40, description: "DPI lên đến 8000, cảm biến chính xác, thiết kế công thái học hoàn hảo." }
+    ];
+
+    // --- Thay thế hàm loadProducts cũ bằng hàm hiển thị sản phẩm cố định ---
+    function displayStaticProducts() {
+        const products = staticProducts;
+        
         const html = products.map(p => {
             const isOutOfStock = p.stockQuantity <= 0;
             const btnText = isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ';
             const stockText = isOutOfStock 
                 ? '<span class="stock-out">Hết hàng</span>' 
                 : `<span class="stock-tag">Kho: ${p.stockQuantity}</span>`;
-            const safeName = p.name.replace(/'/g, "\\'");
+            
+            // Xử lý tên sản phẩm để truyền vào JS an toàn
+            const safeName = p.name.replace(/'/g, "\\'"); 
 
             return `
             <div class="product-card">
                 <div>
                     <div style="height:150px; background:#ecf0f1; border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; color:#bdc3c7;">
-                        <img src="${p.imageUrl || ''}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-                        <span style="display:none; font-size:40px;">📦</span>
+                        <span style="font-size:40px;">📦</span>
                     </div>
                     <div class="product-name">${p.name}</div>
                     <div class="product-desc">${p.description || "Chưa có mô tả."}</div>
                 </div>
                 <div class="product-meta">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                        <span class="price-tag">${p.price.toLocaleString()}đ</span>
+                        <span class="price-tag">${p.price.toLocaleString('vi-VN')}₫</span>
                         ${stockText}
                     </div>
                     <button onclick="addToCart(${p.id}, '${safeName}', ${p.price})" 
@@ -105,12 +173,23 @@
             </div>
             `;
         }).join('');
+        
         document.getElementById('products-list').innerHTML = html;
-      } catch (err) {
-        document.getElementById('products-list').innerHTML = '<p style="text-align:center; color:red;">Lỗi kết nối server.</p>';
-      }
     }
-    loadProducts();
-  </script>
+    
+    // --- Logic khởi tạo ---
+    const auth = checkAuth(); 
+    
+    // Hiển thị tên user nếu có
+    if (localStorage.getItem('username')) {
+        document.getElementById('user-display').textContent = localStorage.getItem('username');
+    }
+
+    // Chạy hàm hiển thị sản phẩm cố định
+    displayStaticProducts();
+    
+    // Cập nhật số lượng giỏ hàng ban đầu (nếu có lưu trữ local)
+    updateCartCount(); 
+  </script>
 </body>
 </html>
