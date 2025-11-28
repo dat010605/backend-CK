@@ -32,6 +32,7 @@ public class LoginController : ControllerBase
             return Unauthorized("Wrong password");
 
         string token = _tokenService.CreateToken(user);
+        string role = user.Role;
 
         return Ok(new { token });
     }
