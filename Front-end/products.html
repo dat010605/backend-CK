@@ -3,100 +3,70 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Danh sách sản phẩm</title>
+  <title>Cửa hàng Mini Order</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
   <style>
-    /* CSS bổ sung riêng cho trang products để hiển thị đẹp hơn */
+    /* CSS nội bộ cho danh sách sản phẩm (giữ nguyên độ đẹp) */
+    .container { max-width: 1200px; margin: 80px auto 20px; padding: 20px; } /* Cách top 80px để tránh đè menu */
     .product-card {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        height: 100%;
-        min-height: 250px;
+        display: flex; flex-direction: column; justify-content: space-between;
+        height: 100%; min-height: 280px; transition: transform 0.2s;
     }
-    .product-name {
-        font-size: 1.2em;
-        font-weight: bold;
-        margin-bottom: 5px;
-        color: #2c3e50;
-    }
-    .product-desc {
-        color: #7f8c8d;
-        font-size: 0.9em;
-        margin-bottom: 15px;
-        flex-grow: 1; /* Đẩy giá tiền xuống dưới cùng */
-        display: -webkit-box;
-        -webkit-line-clamp: 3; /* Giới hạn 3 dòng mô tả */
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-    .product-meta {
-        border-top: 1px solid #eee;
-        padding-top: 10px;
-    }
-    .price-tag {
-        font-size: 1.3em;
-        color: #e74c3c;
-        font-weight: bold;
-    }
-    .stock-tag {
-        font-size: 0.85em;
-        color: #27ae60;
-        margin-bottom: 10px;
-    }
-    .stock-out {
-        color: #c0392b;
-        font-weight: bold;
-    }
-    button:disabled {
-        background-color: #95a5a6;
-        cursor: not-allowed;
-    }
-    button:disabled:hover {
-        transform: none;
-        background-color: #95a5a6;
-    }
+    .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+    .product-name { font-size: 1.2em; font-weight: bold; margin-bottom: 5px; color: #2c3e50; }
+    .product-desc { color: #7f8c8d; font-size: 0.9em; margin-bottom: 15px; flex-grow: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .price-tag { font-size: 1.3em; color: #e74c3c; font-weight: bold; }
+    .stock-tag { font-size: 0.85em; color: #27ae60; background: #e8f8f5; padding: 3px 8px; border-radius: 4px; }
+    .stock-out { color: #c0392b; font-weight: bold; background: #fadbd8; padding: 3px 8px; border-radius: 4px; }
   </style>
 </head>
 <body>
-  <div class="header">CỬA HÀNG MINI ORDER</div>
-  
-  <div style="padding:20px; text-align:right;">
-    <span id="user-display" style="margin-right:15px; font-weight:bold;"></span>
-    
-    <button onclick="location.href='cart.html'" style="width:auto; display:inline-block;">
-        Giỏ hàng (<span id="cart-count">0</span>)
-    </button>
-    <button onclick="logout()" style="width:auto; display:inline-block; background:#7f8c8d; margin-left:5px;">
-        Đăng xuất
-    </button>
-  </div>
 
-  <div id="products-list" class="grid">
-    <p style="text-align:center; grid-column: 1/-1;">Đang tải dữ liệu...</p>
+  <nav class="navbar">
+    <div class="nav-brand" onclick="location.href='products.html'">
+       🛒 Mini Order
+    </div>
+    
+    <div class="nav-links">
+        <a href="products.html" class="active">Sản phẩm</a>
+        <a href="cart.html" class="cart-btn">
+            Giỏ hàng <span class="badge" id="cart-count">0</span>
+        </a>
+        <div class="user-menu">
+            <span id="user-display">Khách</span>
+            <button onclick="logout()" class="btn-logout">Đăng xuất</button>
+        </div>
+    </div>
+  </nav>
+
+  <div class="container" style="box-shadow:none; background:transparent;">
+      <h2 style="margin-bottom: 20px; border-left: 5px solid #007bff; padding-left: 10px; color: #333;">
+          Danh sách sản phẩm mới nhất
+      </h2>
+
+      <div id="products-list" class="grid">
+        <p style="text-align:center; grid-column: 1/-1;">Đang tải dữ liệu...</p>
+      </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <script src="script.js"></script>
   <script>
-    // 1. Kiểm tra đăng nhập
+    // Logic JS cũ giữ nguyên
     const auth = checkAuth(); 
-    if (!auth) {
-        // checkAuth tự redirect, code dưới đây chỉ chạy nếu có token
-    } 
-
-    // (Optional) Hiển thị tên người dùng (lấy từ localStorage nếu bạn có lưu, hoặc decode token)
-    // document.getElementById('user-display').textContent = 'Xin chào!';
+    
+    // Hiển thị tên user nếu có
+    if (localStorage.getItem('username')) {
+        document.getElementById('user-display').textContent = localStorage.getItem('username');
+    }
 
     async function loadProducts() {
       try {
         const res = await fetch(`${API_URL}/products`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
-
         if (!res.ok) throw new Error("Lỗi tải danh sách");
-
         const products = await res.json();
         
         if (products.length === 0) {
@@ -105,51 +75,42 @@
         }
 
         const html = products.map(p => {
-            // Logic kiểm tra tồn kho
             const isOutOfStock = p.stockQuantity <= 0;
             const btnText = isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ';
             const stockText = isOutOfStock 
-                ? '<span class="stock-out">Tạm hết hàng</span>' 
-                : `<span class="stock-tag">Còn lại: ${p.stockQuantity}</span>`;
-            
-            // Xử lý dấu nháy đơn trong tên sản phẩm để tránh lỗi JS
+                ? '<span class="stock-out">Hết hàng</span>' 
+                : `<span class="stock-tag">Kho: ${p.stockQuantity}</span>`;
             const safeName = p.name.replace(/'/g, "\\'");
 
             return `
             <div class="product-card">
                 <div>
+                    <div style="height:150px; background:#ecf0f1; border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; color:#bdc3c7;">
+                        <img src="${p.imageUrl || ''}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+                        <span style="display:none; font-size:40px;">📦</span>
+                    </div>
                     <div class="product-name">${p.name}</div>
-                    <div class="product-desc">${p.description || "Chưa có mô tả chi tiết."}</div>
+                    <div class="product-desc">${p.description || "Chưa có mô tả."}</div>
                 </div>
-                
                 <div class="product-meta">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                         <span class="price-tag">${p.price.toLocaleString()}đ</span>
                         ${stockText}
                     </div>
-                    
-                    <button 
-                        onclick="addToCart(${p.id}, '${safeName}', ${p.price})" 
-                        ${isOutOfStock ? 'disabled' : ''}>
+                    <button onclick="addToCart(${p.id}, '${safeName}', ${p.price})" 
+                        ${isOutOfStock ? 'disabled' : ''} style="width:100%;">
                         ${btnText}
                     </button>
                 </div>
             </div>
             `;
         }).join('');
-
         document.getElementById('products-list').innerHTML = html;
-
       } catch (err) {
-        console.error(err);
-        document.getElementById('products-list').innerHTML = '<p style="text-align:center; color:red;">Không thể tải dữ liệu server.</p>';
+        document.getElementById('products-list').innerHTML = '<p style="text-align:center; color:red;">Lỗi kết nối server.</p>';
       }
     }
-
-    // Gọi hàm tải sản phẩm
     loadProducts();
-    
-    // Lưu ý: Hàm addToCart() đã có sẵn trong file script.js được nhúng vào
   </script>
 </body>
 </html>

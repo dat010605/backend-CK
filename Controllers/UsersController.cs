@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using MiniOrderAPI.Data;
 using MiniOrderAPI.Models;
 using MiniOrderAPI.DTOs;
-using BCrypt.Net;
-using System.Linq; 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization; // Cần dòng này để phân quyền
 
 namespace MiniOrderAPI.Controllers
 {
@@ -19,6 +18,7 @@ namespace MiniOrderAPI.Controllers
             _context = context;
         }
 
+        // 1. LẤY DANH SÁCH USER
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetUsers()
         {
@@ -27,69 +27,122 @@ namespace MiniOrderAPI.Controllers
                 {
                     u.Id,
                     u.Username,
-                    u.Role
+                    u.FullName,
+                    u.Email,
+                    u.Phone,
+                    u.Role,
+                    u.Address
                 })
                 .ToListAsync();
-
-            if (users == null || !users.Any())
-            {
-                return NotFound("Không tìm thấy người dùng nào.");
-            }
 
             return Ok(users);
         }
 
-        // --- POST METHOD ĐỂ TẠO TÀI KHOẢN ---
+        // 2. LẤY CHI TIẾT 1 USER (Để hiển thị lên form sửa)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<object>> GetUserById(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { message = "Không tìm thấy User" });
+
+            return Ok(new 
+            {
+                user.Id,
+                user.Username,
+                user.FullName,
+                user.Email,
+                user.Phone,
+                user.Role,
+                user.Address
+            });
+        }
+
+        // 3. TẠO USER MỚI
         [HttpPost]
         public async Task<ActionResult> RegisterUser([FromBody] RegisterUserDto request)
         {
-            // 1. Kiểm tra username đã tồn tại chưa
             if (await _context.Users.AnyAsync(u => u.Username == request.Username))
-            {
-                return BadRequest("Username đã tồn tại.");
-            }
+                return BadRequest(new { message = "Username đã tồn tại." });
 
-            // 2. Băm mật khẩu (Hashing)
-            string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            string roleToSave = (!string.IsNullOrEmpty(request.Role) && request.Role.ToLower() == "admin") ? "Admin" : "User";
 
-            // --- SỬA LỖI Ở ĐÂY: Logic chuẩn hóa Role ---
-            // Mục đích: Nếu Swagger gửi "admin" (chữ thường) thì tự sửa thành "Admin" (chữ hoa)
-            string roleToSave = request.Role;
-            
-            if (!string.IsNullOrEmpty(roleToSave))
-            {
-                if (roleToSave.ToLower() == "admin")
-                {
-                    roleToSave = "Admin"; // Ép về chuẩn chữ hoa đầu
-                }
-            }
-            else
-            {
-                roleToSave = "User"; // Mặc định là User nếu không gửi
-            }
-
-            // 3. Tạo đối tượng User mới
             var newUser = new User
             {
                 Username = request.Username,
-                PasswordHash = passwordHash,
-                
-                // SỬA: Gán role bằng biến đã chuẩn hóa ở trên
-                Role = roleToSave, 
-                
-                // --- BỔ SUNG CÁC TRƯỜNG BẮT BUỘC ---
-                FullName = request.Username,           // Mặc định lấy username làm tên
-                Email = request.Username + "@system.com", // Email giả lập
-                Address = "Chưa cập nhật",             
-                Phone = "0000000000"                   
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                Role = roleToSave,
+                FullName = request.Username, 
+                Email = request.Username + "@system.com",
+                Address = "",
+                Phone = ""
             };
 
-            // 4. Lưu vào database
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
 
-            // 5. Trả về kết quả thành công
-            return CreatedAtAction(nameof(GetUsers), new { id = newUser.Id }, new { newUser.Id, newUser.Username, newUser.Role });
+            return Ok(new { message = "Tạo User thành công" });
         }
+
+        // ==========================================
+        // 4. CHỨC NĂNG SỬA USER (PUT) - MỚI THÊM
+        // ==========================================
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")] // Chỉ Admin mới được sửa
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest dto)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { message = "Không tìm thấy User" });
+
+            // Cập nhật thông tin cá nhân
+            user.FullName = dto.FullName;
+            user.Email = dto.Email;
+            user.Phone = dto.Phone;
+            user.Address = dto.Address;
+            
+            // Cập nhật Role (Chuẩn hóa)
+            if (!string.IsNullOrEmpty(dto.Role))
+            {
+                user.Role = dto.Role.ToLower() == "admin" ? "Admin" : "User";
+            }
+
+            // Logic đổi mật khẩu: Chỉ đổi nếu người dùng nhập mật khẩu mới
+            if (!string.IsNullOrEmpty(dto.Password))
+            {
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Cập nhật User thành công" });
+        }
+
+        // ==========================================
+        // 5. CHỨC NĂNG XÓA USER (DELETE) - MỚI THÊM
+        // ==========================================
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")] // Chỉ Admin mới được xóa
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { message = "Không tìm thấy User" });
+
+            // (Tùy chọn) Chặn xóa chính mình để tránh lỗi không còn ai quản trị
+            // var currentUsername = User.Identity.Name;
+            // if (user.Username == currentUsername) return BadRequest(new { message = "Không thể tự xóa chính mình!" });
+
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Đã xóa User thành công" });
+        }
+    }
+
+    // Class DTO dùng riêng cho việc Update (đặt ngay trong file này cho gọn)
+    public class UpdateUserRequest
+    {
+        public string FullName { get; set; }
+        public string Email { get; set; }
+        public string Phone { get; set; }
+        public string Address { get; set; }
+        public string Role { get; set; }
+        public string? Password { get; set; } // Dấu ? cho phép null (không đổi pass)
     }
 }
