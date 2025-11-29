@@ -20,7 +20,7 @@ namespace MiniOrderAPI.Controllers
             _tokenService = tokenService;
         }
 
-        // --- SỬA Ở ĐÂY (1): Thêm tham số Role ---
+        // 
         public record RegisterRequest(string Username, string FullName, string Email, string Password, string? Role);
 
         [HttpPost("register")]
@@ -39,7 +39,8 @@ namespace MiniOrderAPI.Controllers
                 Email = dto.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 
-                // --- SỬA Ở ĐÂY (2): Logic lấy Role ---
+                // 
+                
                 Role = !string.IsNullOrEmpty(dto.Role) ? dto.Role : "User",
                 
                 Address = "", 

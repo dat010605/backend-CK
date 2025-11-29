@@ -19,7 +19,7 @@ namespace MiniOrderAPI.Controllers
         }
 
         // GET: api/products
-        // Ai cũng có thể xem danh sách sản phẩm (hoặc yêu cầu đăng nhập tùy bạn)
+        // Ai cũng có thể xem danh sách sản phẩm (hoặc yêu cầu đăng nhập )
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {

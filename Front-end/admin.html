@@ -100,7 +100,7 @@
 
         if (tab === 'products') loadProducts();
         if (tab === 'users') loadUsers();
-        if (tab === 'orders') loadOrders(); // THÊM DÒNG NÀY
+        if (tab === 'orders') loadOrders(); // 
     }
 
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -125,7 +125,7 @@
             document.getElementById('product-table').innerHTML = `<table><tr><th>ID</th><th>Ảnh</th><th>Tên</th><th>Giá</th><th>Kho</th><th>Hành động</th></tr>${html}</table>`;
         } catch(e) { console.error(e); }
     }
-    // (Giữ nguyên các hàm editProduct, openProductModal, saveProduct...)
+    // 
     function openProductModal() { document.getElementById('p-id').value=''; document.getElementById('p-name').value=''; document.getElementById('p-price').value=''; document.getElementById('p-stock').value=''; document.getElementById('p-desc').value=''; document.getElementById('p-img').value=''; document.getElementById('modal-product').style.display='block'; }
     function editProduct(id,name,price,stock,desc,img){ document.getElementById('p-id').value=id; document.getElementById('p-name').value=name; document.getElementById('p-price').value=price; document.getElementById('p-stock').value=stock; document.getElementById('p-desc').value=desc; document.getElementById('p-img').value=img==='undefined'?'':img; document.getElementById('modal-product').style.display='block'; }
     async function saveProduct(){ const id=document.getElementById('p-id').value; const method=id?'PUT':'POST'; const url=id?`${API_URL}/products/${id}`:`${API_URL}/products`; const body={ name:document.getElementById('p-name').value, price:parseFloat(document.getElementById('p-price').value), stockQuantity:parseInt(document.getElementById('p-stock').value), description:document.getElementById('p-desc').value, imageUrl:document.getElementById('p-img').value }; await sendRequest(url,method,body,()=>{ closeModal('modal-product'); loadProducts(); }); }
@@ -151,7 +151,7 @@
             document.getElementById('user-table').innerHTML = `<table><tr><th>ID</th><th>User</th><th>Tên</th><th>Email</th><th>Quyền</th><th>Hành động</th></tr>${html}</table>`;
         } catch(e) { console.error(e); }
     }
-    // (Giữ nguyên các hàm editUser, openUserModal, saveUser...)
+    // 
     function openUserModal(){ document.getElementById('u-id').value=''; document.getElementById('u-username').value=''; document.getElementById('u-username').disabled=false; document.getElementById('u-password').value=''; document.getElementById('u-fullname').value=''; document.getElementById('u-email').value=''; document.getElementById('u-phone').value=''; document.getElementById('u-address').value=''; document.getElementById('u-role').value='User'; document.getElementById('modal-user').style.display='block'; }
     function editUser(id,user,name,email,phone,addr,role){ document.getElementById('u-id').value=id; document.getElementById('u-username').value=user; document.getElementById('u-username').disabled=true; document.getElementById('u-password').value=''; document.getElementById('u-fullname').value=name==='null'?'':name; document.getElementById('u-email').value=email==='null'?'':email; document.getElementById('u-phone').value=phone==='null'?'':phone; document.getElementById('u-address').value=addr==='null'?'':addr; document.getElementById('u-role').value=role; document.getElementById('modal-user').style.display='block'; }
     async function saveUser(){ const id=document.getElementById('u-id').value; const isEdit=!!id; const url=isEdit?`${API_URL}/users/${id}`:`${API_URL}/users`; const method=isEdit?'PUT':'POST'; const body={ username:document.getElementById('u-username').value, password:document.getElementById('u-password').value, fullName:document.getElementById('u-fullname').value, email:document.getElementById('u-email').value, phone:document.getElementById('u-phone').value, address:document.getElementById('u-address').value, role:document.getElementById('u-role').value }; if(!isEdit&&(!body.username||!body.password)){ return toast('Vui lòng nhập Username và Password!','error'); } await sendRequest(url,method,body,()=>{ closeModal('modal-user'); loadUsers(); }); }
